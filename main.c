@@ -4,25 +4,29 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 
-#define DIRECTORY ./Meach3E-8_Mtot3E-5_t1E3_dt1E-2_ecc5E-2_nofrag_br/  //ディレクトリ.
+#define DIRECTORY ./Meach3E-8_Mtot3E-5_t1E3_dt1E-2_ecc5E-2_frag_all/  //ディレクトリ.
 
 #define STR_(str) #str
 #define STR(str) STR_(str)
 
-//#define N_DIVIDE_KE 64
 #define N_DIVIDE_I 64
+#define N_DIVIDE_S 256
 
-#define BACKREACTION true
+#define BACKREACTION false
+#define DIFFERENTTYPE false
+//DIFFERENTTYPE = true のとき : 惑星-微惑星のみ
+//DIFFERENTTYPE = false かつ BACKREACTION = true のとき : 惑星-惑星, 惑星-微惑星
+//DIFFERENTTYPE = false かつ BACKREACTION = false のとき : 惑星-惑星, 惑星-微惑星, 微惑星-微惑星
+
 #define FRAGMENTATION true
 
 #define ACCURACY_CHECK true
 #define EPS_KE 1.0E-10
 #define EPS_I 1.0E-10
-//#define EPS 1.0E-6
+#define EPS_S 1.0E-10
 
 #define T_MAX (2.0*M_PI*1.0E3)
 #define DT (2.0*M_PI*1.0E-2)
-//#define DT_CHECK (2.0*M_PI*1.0E-1)
 
 #define PLANET_EACHMASS 3.0E-6
 #define PLANET_TOTALMASS 3.0E-6
@@ -153,7 +157,6 @@ double I_PVS(double beta){
   do{
     sum = sum_next;
     sum_next = 0.0;
-    nmax *= 2;
     dt = (fin-ini)/2.0/((double)nmax);
 
     /* simpson : dx(f(ndx)+ 4f((n+1)dx)+ f((n+2)dx))/6 = dx'(f(2ndx')+ 4f((2n+1)dx')+ f((2n+2)dx'))/3 , dx' = dx/2 */
@@ -163,6 +166,7 @@ double I_PVS(double beta){
 #if ACCURACY_CHECK
     //printf("I_PVS\tnmax=%d\t%e\n",nmax,fabs((sum-sum_next)/sum_next));
 #endif
+    nmax *= 2;
   }while(
 #if ACCURACY_CHECK
 	 fabs((sum-sum_next)/sum_next)>EPS_I && nmax<=16384
@@ -188,7 +192,6 @@ double I_QVS(double beta){
   do{
     sum = sum_next;
     sum_next = 0.0;
-    nmax *= 2;
     dt = (fin-ini)/2.0/((double)nmax);
 
      /* simpson : dx(f(ndx)+ 4f((n+1)dx)+ f((n+2)dx))/6 = dx'(f(2ndx')+ 4f((2n+1)dx')+ f((2n+2)dx'))/3 , dx' = dx/2 */
@@ -198,6 +201,7 @@ double I_QVS(double beta){
 #if ACCURACY_CHECK
     //printf("I_QVS\tnmax=%d\t%e\n",nmax,fabs((sum-sum_next)/sum_next));
 #endif
+    nmax *= 2;
   }while(
 #if ACCURACY_CHECK
 	 fabs((sum-sum_next)/sum_next)>EPS_I && nmax<=16384
@@ -223,7 +227,6 @@ double I_PDF(double beta){
   do{
     sum = sum_next;
     sum_next = 0.0;
-    nmax *= 2;
     dt = (fin-ini)/2.0/((double)nmax);
 
     /* simpson : dx(f(ndx)+ 4f((n+1)dx)+ f((n+2)dx))/6 = dx'(f(2ndx')+ 4f((2n+1)dx')+ f((2n+2)dx'))/3 , dx' = dx/2 */
@@ -233,6 +236,7 @@ double I_PDF(double beta){
 #if ACCURACY_CHECK
     //printf("I_PDF\tnmax=%d\t%e\n",nmax,fabs((sum-sum_next)/sum_next));
 #endif
+    nmax *= 2;
   }while(
 #if ACCURACY_CHECK
 	 fabs((sum-sum_next)/sum_next)>EPS_I && nmax<=16384
@@ -258,7 +262,6 @@ double I_QDF(double beta){
   do{
     sum = sum_next;
     sum_next = 0.0;
-    nmax *= 2;
     dt = (fin-ini)/2.0/((double)nmax);
 
      /* simpson : dx(f(ndx)+ 4f((n+1)dx)+ f((n+2)dx))/6 = dx'(f(2ndx')+ 4f((2n+1)dx')+ f((2n+2)dx'))/3 , dx' = dx/2 */
@@ -268,6 +271,7 @@ double I_QDF(double beta){
 #if ACCURACY_CHECK
     //printf("I_QDF\tnmax=%d\t%e\n",nmax,fabs((sum-sum_next)/sum_next));
 #endif
+    nmax *= 2;
   }while(
 #if ACCURACY_CHECK
 	 fabs((sum-sum_next)/sum_next)>EPS_I && nmax<=16384
@@ -318,8 +322,24 @@ double N_s(int j,CONST struct elements ele[]){
   return ele[j].totalmass / ele[j].eachmass / S;
 }
 
-int BR_judge(int i){
-#if BACKREACTION
+
+int judge_ini(int i){
+#if DIFFERENTTYPE
+  if(i==1){
+    return 2;
+  }else if(i==2){
+    return 1;
+  }else{
+    printf("judge error\n");
+    exit(-1);
+  }
+#else
+  return 1;
+#endif
+}
+
+int judge_fin(int i){
+#if BACKREACTION || DIFFERENTTYPE
   if(i==1){
     return 2;
   }else if(i==2){
@@ -333,12 +353,13 @@ int BR_judge(int i){
 #endif
 }
 
+
 double decc2dt(int i,CONST struct elements ele[]){
   int j;
   double tmp=0.0;
   double ecc2=0.0,inc2=0.0;
 
-  for(j=1;j<=BR_judge(i);j++){
+  for(j=judge_ini(i);j<=judge_fin(i);j++){
 
     ecc2 = (ele[i].ecc2 + ele[j].ecc2)/(Reduced_Hill(i,j,ele)*Reduced_Hill(i,j,ele));
     inc2 = (ele[i].inc2 + ele[j].inc2)/(Reduced_Hill(i,j,ele)*Reduced_Hill(i,j,ele));
@@ -357,7 +378,7 @@ double dinc2dt(int i,CONST struct elements ele[]){
   double tmp=0.0;
   double ecc2=0.0,inc2=0.0;
 
-  for(j=1;j<=BR_judge(i);j++){
+  for(j=judge_ini(i);j<=judge_fin(i);j++){
 
     ecc2 = (ele[i].ecc2 + ele[j].ecc2)/(Reduced_Hill(i,j,ele)*Reduced_Hill(i,j,ele));
     inc2 = (ele[i].inc2 + ele[j].inc2)/(Reduced_Hill(i,j,ele)*Reduced_Hill(i,j,ele));
@@ -371,13 +392,6 @@ double dinc2dt(int i,CONST struct elements ele[]){
 }
 
 #if FRAGMENTATION
-double Depletion_Time(int i,CONST struct fragmentation *frag_p){
-  return -XI*((frag_p+i)->sigma)/((frag_p+i)->flux);
-}
-#endif
-
-
-#if FRAGMENTATION
 double s_1_FRAG_integrand(double x,CONST struct parameter *para_p){
   return exp((2.0 - (para_p->alpha))*x)/(1.0 + exp(x));
 }
@@ -385,11 +399,74 @@ double s_1_FRAG_integrand(double x,CONST struct parameter *para_p){
 
 
 #if FRAGMENTATION
-double s_2_FRAG_integrand(double x,CONST struct parameter *para_p){
-  return - exp((2.0 - (para_p->alpha))*x)/(1.0 + exp(x))*(x - 2.0*log(1 + exp(x)));
+double s_1_FRAG(CONST struct parameter *para_p){
+  int n,nmax=N_DIVIDE_S;
+  double ini=-100.0,fin=100.0;
+  double dx=0.0;
+  double sum=0.0,sum_next=0.0;
+
+  do{
+    sum = sum_next;
+    sum_next = 0.0;
+    dx = (fin-ini)/2.0/((double)nmax);
+
+    /* simpson : dx(f(ndx)+ 4f((n+1)dx)+ f((n+2)dx))/6 = dx'(f(2ndx')+ 4f((2n+1)dx')+ f((2n+2)dx'))/3 , dx' = dx/2 */
+    for(n=0;n<nmax;n++){
+      sum_next += dx * (s_1_FRAG_integrand(ini+2.0*n*dx,para_p) + 4.0*s_1_FRAG_integrand(ini+(2.0*n+1)*dx,para_p) + s_1_FRAG_integrand(ini+(2.0*n+2)*dx,para_p)) / 3.0;
+    }
+#if ACCURACY_CHECK
+    //printf("s_1\tnmax=%d\t%e\n",nmax,fabs((sum-sum_next)/sum_next));
+#endif
+    nmax *= 2;
+  }while(
+#if ACCURACY_CHECK
+	 fabs((sum-sum_next)/sum_next)>EPS_S && nmax<=16384
+#else
+	 false
+#endif
+	 );
+
+  return sum_next;
 }
 #endif
 
+#if FRAGMENTATION
+double s_2_FRAG_integrand(double x,CONST struct parameter *para_p){
+  return - exp((2.0 - (para_p->alpha))*x)/(1.0 + exp(x))*(x - 2.0*log(1.0 + exp(x)));
+}
+#endif
+
+#if FRAGMENTATION
+double s_2_FRAG(CONST struct parameter *para_p){
+  int n,nmax=N_DIVIDE_S;
+  double ini=-100.0,fin=100.0;
+  double dx=0.0;
+  double sum=0.0,sum_next=0.0;
+
+  do{
+    sum = sum_next;
+    sum_next = 0.0;
+    dx = (fin-ini)/2.0/((double)nmax);
+
+    /* simpson : dx(f(ndx)+ 4f((n+1)dx)+ f((n+2)dx))/6 = dx'(f(2ndx')+ 4f((2n+1)dx')+ f((2n+2)dx'))/3 , dx' = dx/2 */
+    for(n=0;n<nmax;n++){
+      sum_next += dx * (s_2_FRAG_integrand(ini+2.0*n*dx,para_p) + 4.0*s_2_FRAG_integrand(ini+(2.0*n+1)*dx,para_p) + s_2_FRAG_integrand(ini+(2.0*n+2)*dx,para_p)) / 3.0;
+    }
+#if ACCURACY_CHECK
+    //printf("s_2\tnmax=%d\t%e\n",nmax,fabs((sum-sum_next)/sum_next));
+#endif
+    nmax *= 2;
+  }while(
+#if ACCURACY_CHECK
+	 fabs((sum-sum_next)/sum_next)>EPS_S && nmax<=16384
+#else
+	 false
+#endif
+	 );
+
+  return sum_next;
+}
+#endif
 
 #if FRAGMENTATION
 double s_3_FRAG_integrand(double x,CONST struct parameter *para_p){
@@ -398,107 +475,50 @@ double s_3_FRAG_integrand(double x,CONST struct parameter *para_p){
 #endif
 
 #if FRAGMENTATION
-double s_1_FRAG_trapezoid(int n,double dx,double ini,CONST struct parameter *para_p){
-  return 0.5*dx*(s_1_FRAG_integrand(ini+n*dx,para_p)+s_1_FRAG_integrand(ini+(n+1)*dx,para_p));
-}
-#endif
+double s_3_FRAG(CONST struct parameter *para_p){
+  int n,nmax=N_DIVIDE_S;
+  double ini=-36.0,fin=100.0;
+  double dx=0.0;
+  double sum=0.0,sum_next=0.0;
 
-
-#if FRAGMENTATION
-double s_2_FRAG_trapezoid(int n,double dx,double ini,CONST struct parameter *para_p){
-  return 0.5*dx*(s_2_FRAG_integrand(ini+n*dx,para_p)+s_2_FRAG_integrand(ini+(n+1)*dx,para_p));
-}
-#endif
-
-
-#if FRAGMENTATION
-double s_3_FRAG_trapezoid(int n,double dx,double ini,CONST struct parameter *para_p){
-  return 0.5*dx*(s_3_FRAG_integrand(ini+n*dx,para_p)+s_3_FRAG_integrand(ini+(n+1)*dx,para_p));
-}
-#endif
-
-
-
-#if FRAGMENTATION
-double s_1_FRAG(struct parameter *para_p){
-  int n,n_max;
-  double dx,sum=0.0,sum_pre=0.0;
-  double ini=-36.0,fin=36.0;
-  double eps=1.0E-7;
-
-  n_max = 1;
   do{
-    dx = (fin-ini)/(double)n_max;
-    sum_pre = sum;
-    sum=0;
-    for(n=0;n<n_max;n++){
-      sum += s_1_FRAG_trapezoid(n, dx, ini, para_p);
-    }
-    //fprintf(fplog,"n_max=%d\n",n_max);
-    n_max *= 2;
-  }while(fabs(sum_pre-sum)>eps);
+    sum = sum_next;
+    sum_next = 0.0;
+    dx = (fin-ini)/2.0/((double)nmax);
 
-  return sum;
+    /* simpson : dx(f(ndx)+ 4f((n+1)dx)+ f((n+2)dx))/6 = dx'(f(2ndx')+ 4f((2n+1)dx')+ f((2n+2)dx'))/3 , dx' = dx/2 */
+    for(n=0;n<nmax;n++){
+      sum_next += dx * (s_3_FRAG_integrand(ini+2.0*n*dx,para_p) + 4.0*s_3_FRAG_integrand(ini+(2.0*n+1)*dx,para_p) + s_3_FRAG_integrand(ini+(2.0*n+2)*dx,para_p)) / 3.0;
+    }
+#if ACCURACY_CHECK
+    //printf("s_3\tnmax=%d\t%e\n",nmax,fabs((sum-sum_next)/sum_next));
+#endif
+    nmax *= 2;
+  }while(
+#if ACCURACY_CHECK
+	 fabs((sum-sum_next)/sum_next)>EPS_S && nmax<=16384
+#else
+	 false
+#endif
+	 );
+
+  return sum_next;
 }
 #endif
-
 
 #if FRAGMENTATION
-double s_2_FRAG(struct parameter *para_p){
-    int n,n_max;
-  double dx,sum=0.0,sum_pre=0.0;
-  double ini=-36.0,fin=36.0;
-  double eps=1.0E-7;
+void Fragmentation(struct fragmentation *frag_p,CONST struct parameter *para_p, CONST struct elements ele[]){
 
-  n_max = 1;
-  do{
-    dx = (fin-ini)/(double)n_max;
-    sum_pre = sum;
-    sum=0;
-    for(n=0;n<n_max;n++){
-      sum += s_2_FRAG_trapezoid(n, dx, ini, para_p);
-    }
-    //fprintf(fplog,"n_max=%d\n",n_max);
-    n_max *= 2;
-  }while(fabs(sum_pre-sum)>eps);
+  (frag_p->sigma) = ele[2].eachmass * N_s(2,ele);
+  (frag_p->v_ave) = sqrt(2.0*(ele[2].ecc2 + ele[2].inc2)) / AXIS;
+  (frag_p->flux) = - (2.0 - (para_p->alpha))*(2.0 - (para_p->alpha)) / cbrt(M_MAX) * (frag_p->sigma)*(frag_p->sigma) * sqrt(1.0/AXIS/AXIS/AXIS) * (para_p->h_0) * pow((frag_p->v_ave)*(frag_p->v_ave)*0.5/(para_p->Q_D),(para_p->alpha)-1.0) * ((- log(EPSILON_FRAG) + 1.0/(2.0-B_FRAG))*(para_p->s_1) + (para_p->s_2) + (para_p->s_3));
+  (frag_p->dt_frag) = - XI * (frag_p->sigma) / (frag_p->flux);
 
-  return sum;
+  //printf("t_frag = %e[yr]\tdt_frag = %e[yr]\tsigma = %e\tv_ave = %e\tflux = %e\n",(frag_p->t_frag)/2.0/M_PI,(frag_p->dt_frag)/2.0/M_PI,(frag_p->sigma),(frag_p->v_ave),(frag_p->flux));
+
+  return;
 }
 #endif
-
-
-#if FRAGMENTATION
-double s_3_FRAG(struct parameter *para_p){
-  int n,n_max;
-  double dx,sum=0.0,sum_pre=0.0;
-  double ini=-36.0,fin=36.0;
-  double eps=1.0E-7;
-
-  n_max = 1;
-  do{
-    dx = (fin-ini)/(double)n_max;
-    sum_pre = sum;
-    sum=0;
-    for(n=0;n<n_max;n++){
-      sum += s_3_FRAG_trapezoid(n, dx, ini, para_p);
-    }
-    //fprintf(fplog,"n_max=%d\n",n_max);
-    n_max *= 2;
-  }while(fabs(sum_pre-sum)>eps);
-
-  return sum;
-}
-#endif
-
-
-double mass_dep(CONST struct fragmentation frag, CONST struct elements ele[]){
-
-  frag.sigma = ele[2].eachmass * N_s(2,ele);
-  frag.v_ave = sqrt(2.0*(ele[2].ecc2 + ele[2].inc2)) / AXIS;
-  frag.flux = 0.0;
-
-  return 0.0;
-}
 
 int main(){
 
@@ -506,8 +526,10 @@ int main(){
   double t=0.0,dt=DT,t_check=DT*10.0;
   //double ecc2=0.0,inc2=0.0,tmp=pow(10.0,0.01);
   static struct elements ele[3]={};
+#if FRAGMENTATION
   static struct fragmentation frag;
-  struct parameter para;
+  static struct parameter para;
+#endif
   FILE *fpdata;
   char datafile[200]={};
   //FILE *fptest;
@@ -533,6 +555,7 @@ int main(){
 	 para.Q_D
 	 );
 #endif
+
 
   sprintf(ele[1].name,"Planet");
   ele[1].eachmass = PLANET_EACHMASS;
@@ -565,6 +588,13 @@ int main(){
     fclose(fpdata);
   }
 
+#if FRAGMENTATION
+  /* 初期 */
+  Fragmentation(&frag,&para,ele);
+  frag.t_frag = frag.dt_frag;
+#endif
+
+
   do{
 
     t += dt;
@@ -575,10 +605,15 @@ int main(){
     }
 
 #if FRAGMENTATION
+    if(t > frag.t_frag){
+      Fragmentation(&frag,&para,ele);
+      frag.t_frag += frag.dt_frag;
+      ele[2].eachmass_next = ele[2].eachmass / (1.0 + XI);
+      ele[2].totalmass_next = ele[2].totalmass / (1.0 + XI);
 
-#else
-    ele[2].eachmass_next = ele[2].eachmass;
-    ele[2].totalmass_next = ele[2].totalmass;
+      ele[2].eachmass = ele[2].eachmass_next;
+      ele[2].totalmass = ele[2].totalmass_next;
+    }
 #endif
 
 
@@ -587,8 +622,11 @@ int main(){
       ele[i].inc2 = ele[i].inc2_next;
     }
 
-    if(t-t_check>=0.0){
+
+    if(t >= t_check){
+
       printf("%f\n",t/2.0/M_PI);
+
       for(i=1;i<=2;i++){
 	sprintf(datafile,"%s%s.dat",STR(DIRECTORY),ele[i].name);
 	fpdata = fopen(datafile,"a");
