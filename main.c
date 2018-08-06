@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 
-#define DIRECTORY ./Meach3E-8_Mtot3E-5_t1E3_dt1E-2_ecc5E-2_frag_all/  //ディレクトリ.
+#define DIRECTORY ./Meach3E-8_Mtot3E-5_Mmax5E-18_t1E3_dtlog_ecc5E-2_frag_dt/  //ディレクトリ.
 
 #define STR_(str) #str
 #define STR(str) STR_(str)
@@ -12,8 +12,11 @@
 #define N_DIVIDE_I 64
 #define N_DIVIDE_S 256
 
-#define BACKREACTION false
-#define DIFFERENTTYPE false
+#define ECC_RMS 5.0E-2
+#define INC_RMS (BETA*ECC_RMS)
+
+#define BACKREACTION true
+#define DIFFERENTTYPE true
 //DIFFERENTTYPE = true のとき : 惑星-微惑星のみ
 //DIFFERENTTYPE = false かつ BACKREACTION = true のとき : 惑星-惑星, 惑星-微惑星
 //DIFFERENTTYPE = false かつ BACKREACTION = false のとき : 惑星-惑星, 惑星-微惑星, 微惑星-微惑星
@@ -37,8 +40,6 @@
 #define AXIS 1.0
 #define BETA 0.5
 
-#define ECC_RMS 5.0E-2
-#define INC_RMS (BETA*ECC_RMS)
 
 
 #if FRAGMENTATION
@@ -48,7 +49,8 @@
 #define Q_0_FRAG 9.5E8 // [erg/g]  Q_D = Q_0*(rho/3[g/cc])^0.55*(m/10^21[g])^p
 #define P_FRAG 0.453
 #define XI 0.01 //統計的計算のタイムステップがタイムスケールの"XI"倍.
-#define M_MAX 5.00E-15  //最大微惑星質量. 1E19 g = 10kmサイズ.
+//#define M_MAX 5.00E-15  //最大微惑星質量. 1E19 g = 10kmサイズ.
+#define M_MAX 5.00E-18  //最大微惑星質量. 1E16 g = 1kmサイズ.
 #endif
 
 #if __GNUC__ == 7
