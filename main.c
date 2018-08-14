@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 
-#define DIRECTORY ./Meach3E-8_Mtot3E-5_Mmax5E-18_t1E3_dtlog_ecc5E-2_frag_dt/  //ディレクトリ.
+#define DIRECTORY ./Meach3E-8_Mtot3E-5_Mmax5E-18_t1E3_dtlog_ecc1E-2_frag_all/  //ディレクトリ.
 
 #define STR_(str) #str
 #define STR(str) STR_(str)
@@ -12,11 +12,11 @@
 #define N_DIVIDE_I 64
 #define N_DIVIDE_S 256
 
-#define ECC_RMS 5.0E-2
+#define ECC_RMS 1.0E-2
 #define INC_RMS (BETA*ECC_RMS)
 
-#define BACKREACTION true
-#define DIFFERENTTYPE true
+#define BACKREACTION false
+#define DIFFERENTTYPE false
 //DIFFERENTTYPE = true のとき : 惑星-微惑星のみ
 //DIFFERENTTYPE = false かつ BACKREACTION = true のとき : 惑星-惑星, 惑星-微惑星
 //DIFFERENTTYPE = false かつ BACKREACTION = false のとき : 惑星-惑星, 惑星-微惑星, 微惑星-微惑星
@@ -29,7 +29,7 @@
 #define EPS_S 1.0E-10
 
 #define T_MAX (2.0*M_PI*1.0E3)
-#define DT (2.0*M_PI*1.0E-2)
+#define DT (2.0*M_PI*1.0E-3)
 
 #define PLANET_EACHMASS 3.0E-6
 #define PLANET_TOTALMASS 3.0E-6
@@ -525,7 +525,7 @@ void Fragmentation(struct fragmentation *frag_p,CONST struct parameter *para_p, 
 int main(){
 
   int i;
-  double t=0.0,dt=DT,t_check=DT*10.0;
+  double t=0.0,dt=DT,t_check=2.0*M_PI*0.1;
   //double ecc2=0.0,inc2=0.0,tmp=pow(10.0,0.01);
   static struct elements ele[3]={};
 #if FRAGMENTATION
@@ -594,6 +594,11 @@ int main(){
   /* 初期 */
   Fragmentation(&frag,&para,ele);
   frag.t_frag = frag.dt_frag;
+
+  if(dt>frag.dt_frag){
+    printf("t = %e [yr], dt_frag = %e [yr]\n",t/2.0/M_PI,frag.dt_frag/2.0/M_PI);
+    //dt = 0.1*frag.dt_frag;
+  }
 #endif
 
 
@@ -615,6 +620,12 @@ int main(){
 
       ele[2].eachmass = ele[2].eachmass_next;
       ele[2].totalmass = ele[2].totalmass_next;
+
+
+      if(dt>frag.dt_frag){
+	printf("t = %e [yr], dt_frag = %e [yr]\n",t/2.0/M_PI,frag.dt_frag/2.0/M_PI);
+	//dt = 0.1*frag.dt_frag;
+      }
     }
 #endif
 
@@ -623,6 +634,7 @@ int main(){
       ele[i].ecc2 = ele[i].ecc2_next;
       ele[i].inc2 = ele[i].inc2_next;
     }
+
 
 
     if(t >= t_check){
@@ -685,7 +697,7 @@ int main(){
   */
 
 
-  
+
 
   /*
   sprintf(testfile,"%stest_I.dat",STR(DIRECTORY));
