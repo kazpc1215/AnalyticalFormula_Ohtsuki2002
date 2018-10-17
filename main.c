@@ -4,7 +4,8 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 
-#define DIRECTORY ./Meach3E-8_Mtot3E-5_Mmax5E-18_t1E3_dtlog_ecc1E-2_frag_all/  //ディレクトリ.
+//#define DIRECTORY ./Meach3E-8_Mtot3E-5_Mmax5E-18_t1E3_dtlog_ecc1E-2_frag_all/  //ディレクトリ.
+#define DIRECTORY ./test/  //ディレクトリ.
 
 #define STR_(str) #str
 #define STR(str) STR_(str)
@@ -12,7 +13,7 @@
 #define N_DIVIDE_I 64
 #define N_DIVIDE_S 256
 
-#define ECC_RMS 1.0E-2
+#define ECC_RMS 5.0E-2
 #define INC_RMS (BETA*ECC_RMS)
 
 #define BACKREACTION false
@@ -29,7 +30,7 @@
 #define EPS_S 1.0E-10
 
 #define T_MAX (2.0*M_PI*1.0E3)
-#define DT (2.0*M_PI*1.0E-3)
+//#define DT (2.0*M_PI*1.0E-3)
 
 #define PLANET_EACHMASS 3.0E-6
 #define PLANET_TOTALMASS 3.0E-6
@@ -49,8 +50,8 @@
 #define Q_0_FRAG 9.5E8 // [erg/g]  Q_D = Q_0*(rho/3[g/cc])^0.55*(m/10^21[g])^p
 #define P_FRAG 0.453
 #define XI 0.01 //統計的計算のタイムステップがタイムスケールの"XI"倍.
-//#define M_MAX 5.00E-15  //最大微惑星質量. 1E19 g = 10kmサイズ.
-#define M_MAX 5.00E-18  //最大微惑星質量. 1E16 g = 1kmサイズ.
+#define M_MAX 5.00E-15  //最大微惑星質量. 1E19 g = 10kmサイズ.
+//#define M_MAX 5.00E-18  //最大微惑星質量. 1E16 g = 1kmサイズ.
 #endif
 
 #if __GNUC__ == 7
@@ -525,7 +526,7 @@ void Fragmentation(struct fragmentation *frag_p,CONST struct parameter *para_p, 
 int main(){
 
   int i;
-  double t=0.0,dt=DT,t_check=2.0*M_PI*0.1;
+  double t=0.0,dt=0.0,t_check=2.0*M_PI*0.1;
   //double ecc2=0.0,inc2=0.0,tmp=pow(10.0,0.01);
   static struct elements ele[3]={};
 #if FRAGMENTATION
@@ -590,56 +591,110 @@ int main(){
     fclose(fpdata);
   }
 
+
+  dt = 0.1 * fabs(ele[1].ecc2 / decc2dt(1,ele));  //離心率進化のタイムスケールの0.1倍.
+  printf("dt_0 = %e [yr]\n",dt/2.0/M_PI);
+
+
 #if FRAGMENTATION
   /* 初期 */
   Fragmentation(&frag,&para,ele);
-  frag.t_frag = frag.dt_frag;
 
-  if(dt>frag.dt_frag){
-    printf("t = %e [yr], dt_frag = %e [yr]\n",t/2.0/M_PI,frag.dt_frag/2.0/M_PI);
-    //dt = 0.1*frag.dt_frag;
+  if(dt > frag.dt_frag){
+    printf("\tdt = %e [yr] > dt_frag = %e [yr]\n",dt/2.0/M_PI,frag.dt_frag/2.0/M_PI);
+
+    dt = frag.dt_frag;
+
+    printf("\t=> dt = %e [yr]\n",dt/2.0/M_PI);
   }
 #endif
 
 
-  do{
+  while(t - dt < T_MAX){
 
-    t += dt;
+    printf("------------------------------------\n");
+    printf("t = %e [yr]\n",t/2.0/M_PI);
 
-    for(i=1;i<=2;i++){
-      ele[i].ecc2_next = ele[i].ecc2 + decc2dt(i,ele) * dt;
-      ele[i].inc2_next = ele[i].inc2 + dinc2dt(i,ele) * dt;
-    }
+    if(t < t_check){
+
+      /////////////////////////////////////////////////////////
+      for(i=1;i<=2;i++){
+	ele[i].ecc2_next = ele[i].ecc2 + decc2dt(i,ele) * dt;
+	ele[i].inc2_next = ele[i].inc2 + dinc2dt(i,ele) * dt;
+      }
 
 #if FRAGMENTATION
-    if(t > frag.t_frag){
+      ele[2].eachmass_next = ele[2].eachmass / (1.0 + dt/(- frag.sigma / frag.flux));
+      ele[2].totalmass_next = ele[2].totalmass / (1.0 + dt/(- frag.sigma / frag.flux));
+#endif
+
+      dt = 0.1 * fabs(ele[1].ecc2 / decc2dt(1,ele));  //離心率進化のタイムスケールの0.1倍.
+
+#if FRAGMENTATION
       Fragmentation(&frag,&para,ele);
-      frag.t_frag += frag.dt_frag;
-      ele[2].eachmass_next = ele[2].eachmass / (1.0 + XI);
-      ele[2].totalmass_next = ele[2].totalmass / (1.0 + XI);
+
+      if(dt > frag.dt_frag){
+	printf("\tdt = %e [yr] > dt_frag = %e [yr]\n",dt/2.0/M_PI,frag.dt_frag/2.0/M_PI);
+
+	dt = frag.dt_frag;
+
+	printf("\t=> dt = %e [yr]\n",dt/2.0/M_PI);
+      }
 
       ele[2].eachmass = ele[2].eachmass_next;
       ele[2].totalmass = ele[2].totalmass_next;
-
-
-      if(dt>frag.dt_frag){
-	printf("t = %e [yr], dt_frag = %e [yr]\n",t/2.0/M_PI,frag.dt_frag/2.0/M_PI);
-	//dt = 0.1*frag.dt_frag;
-      }
-    }
 #endif
 
 
-    for(i=1;i<=2;i++){
-      ele[i].ecc2 = ele[i].ecc2_next;
-      ele[i].inc2 = ele[i].inc2_next;
-    }
+      for(i=1;i<=2;i++){
+	ele[i].ecc2 = ele[i].ecc2_next;
+	ele[i].inc2 = ele[i].inc2_next;
+      }
+      /////////////////////////////////////////////////////////
+
+    }else{  //t_checkに時間を揃える.
+
+      printf("check %e [yr]\n",t/2.0/M_PI);
+
+      t = t_check;
+      dt = t_check - t;
+
+      /////////////////////////////////////////////////////////
+      for(i=1;i<=2;i++){
+	ele[i].ecc2_next = ele[i].ecc2 + decc2dt(i,ele) * dt;
+	ele[i].inc2_next = ele[i].inc2 + dinc2dt(i,ele) * dt;
+      }
 
 
+#if FRAGMENTATION
+      ele[2].eachmass_next = ele[2].eachmass / (1.0 + dt/(- frag.sigma / frag.flux));
+      ele[2].totalmass_next = ele[2].totalmass / (1.0 + dt/(- frag.sigma / frag.flux));
+#endif
 
-    if(t >= t_check){
+      dt = 0.1 * fabs(ele[1].ecc2 / decc2dt(1,ele));  //離心率進化のタイムスケールの0.1倍.
 
-      printf("%f\n",t/2.0/M_PI);
+#if FRAGMENTATION
+      Fragmentation(&frag,&para,ele);
+
+      if(dt > frag.dt_frag){
+	printf("\tdt = %e [yr] > dt_frag = %e [yr]\n",dt/2.0/M_PI,frag.dt_frag/2.0/M_PI);
+
+	dt = frag.dt_frag;
+
+	printf("\t=> dt = %e [yr]\n",dt/2.0/M_PI);
+      }
+
+      ele[2].eachmass = ele[2].eachmass_next;
+      ele[2].totalmass = ele[2].totalmass_next;
+#endif
+
+
+      for(i=1;i<=2;i++){
+	ele[i].ecc2 = ele[i].ecc2_next;
+	ele[i].inc2 = ele[i].inc2_next;
+      }
+      /////////////////////////////////////////////////////////
+
 
       for(i=1;i<=2;i++){
 	sprintf(datafile,"%s%s.dat",STR(DIRECTORY),ele[i].name);
@@ -658,11 +713,12 @@ int main(){
 		);
 	fclose(fpdata);
       }
-      t_check *= pow(10.0,0.05);
+      t_check *= pow(10.0,1.0/8.0);
     }
 
+    t += dt;
 
-  }while(t<=T_MAX);
+  }
 
 
   /*
