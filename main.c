@@ -4,8 +4,9 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 
-//#define DIRECTORY ./Meach3E-8_Mtot3E-5_Mmax5E-18_t1E3_dtlog_ecc1E-2_frag_all/  //ディレクトリ.
-#define DIRECTORY ./test/  //ディレクトリ.
+#define DIRECTORY ./Meach5E-15_Mtot3E-7_Mmax5E-15_t1E9_dtlog_ecc1E-1_frag_dt/  //ディレクトリ.
+//#define DIRECTORY ./Meach3E-9_Mtot3E-7_Mmax5E-15_t1E9_dtlog_ecc1E-1_nofrag_dt/  //ディレクトリ.
+//#define DIRECTORY ./test/  //ディレクトリ.
 
 #define STR_(str) #str
 #define STR(str) STR_(str)
@@ -13,14 +14,13 @@
 #define N_DIVIDE_I 64
 #define N_DIVIDE_S 256
 
-#define ECC_RMS 5.0E-2
+#define ECC_RMS 1.0E-1
 #define INC_RMS (BETA*ECC_RMS)
 
+#define DIFFERENTTYPE true  //DIFFERENTTYPE = true のとき : 惑星-微惑星のみ.
 #define BACKREACTION false
-#define DIFFERENTTYPE false
-//DIFFERENTTYPE = true のとき : 惑星-微惑星のみ
-//DIFFERENTTYPE = false かつ BACKREACTION = true のとき : 惑星-惑星, 惑星-微惑星
-//DIFFERENTTYPE = false かつ BACKREACTION = false のとき : 惑星-惑星, 惑星-微惑星, 微惑星-微惑星
+//DIFFERENTTYPE = false かつ BACKREACTION = true のとき : 惑星-惑星, 惑星-微惑星.
+//DIFFERENTTYPE = false かつ BACKREACTION = false のとき : 惑星-惑星, 惑星-微惑星, 微惑星-微惑星.
 
 #define FRAGMENTATION true
 
@@ -29,17 +29,18 @@
 #define EPS_I 1.0E-10
 #define EPS_S 1.0E-10
 
-#define T_MAX (2.0*M_PI*1.0E3)
-//#define DT (2.0*M_PI*1.0E-3)
+#define T_MAX (2.0*M_PI*1.0E9)
 
 #define PLANET_EACHMASS 3.0E-6
 #define PLANET_TOTALMASS 3.0E-6
 
-#define PLANETESIMAL_EACHMASS 3.0E-8
-#define PLANETESIMAL_TOTALMASS 3.0E-5
+#define PLANETESIMAL_EACHMASS 5.0E-15
+#define PLANETESIMAL_TOTALMASS 3.0E-7
+
 
 #define AXIS 1.0
 #define BETA 0.5
+#define ETA 0.01
 
 
 
@@ -523,11 +524,60 @@ void Fragmentation(struct fragmentation *frag_p,CONST struct parameter *para_p, 
 }
 #endif
 
-int main(){
+
+static inline double Min(double a, double b){
+  if(a < b){
+    return a;
+  }else{
+    return b;
+  }
+}
+
+
+void Evolution(double *dt,
+#if FRAGMENTATION
+	       struct fragmentation *frag_p,
+	       struct parameter *para_p,
+#endif
+	       struct elements *ele_p){
 
   int i;
-  double t=0.0,dt=0.0,t_check=2.0*M_PI*0.1;
-  //double ecc2=0.0,inc2=0.0,tmp=pow(10.0,0.01);
+
+  for(i=1;i<=2;i++){
+    (ele_p+i)->ecc2_next = (ele_p+i)->ecc2 + decc2dt(i,ele_p) * (*dt);
+    (ele_p+i)->inc2_next = (ele_p+i)->inc2 + dinc2dt(i,ele_p) * (*dt);
+  }
+
+#if FRAGMENTATION
+  (ele_p+2)->eachmass_next = (ele_p+2)->eachmass / (1.0 + (*dt)/(- frag_p->sigma / frag_p->flux));
+  (ele_p+2)->totalmass_next = (ele_p+2)->totalmass / (1.0 + (*dt)/(- frag_p->sigma / frag_p->flux));
+#endif
+
+  (*dt) = ETA * Min(fabs((ele_p+1)->ecc2 / decc2dt(1,ele_p)),fabs((ele_p+2)->ecc2 / decc2dt(2,ele_p)));  //離心率進化のタイムスケールのETA倍.
+
+#if FRAGMENTATION
+  Fragmentation(frag_p,para_p,ele_p);
+
+  (*dt) = Min(*dt,frag_p->dt_frag);
+
+  (ele_p+2)->eachmass = (ele_p+2)->eachmass_next;
+  (ele_p+2)->totalmass = (ele_p+2)->totalmass_next;
+#endif
+
+
+  for(i=1;i<=2;i++){
+    (ele_p+i)->ecc2 = (ele_p+i)->ecc2_next;
+    (ele_p+i)->inc2 = (ele_p+i)->inc2_next;
+  }
+
+  return;
+}
+
+
+int main(){
+
+  int i,step=0;
+  double t=0.0,dt=0.0,t_check=2.0*M_PI*1E-3;
   static struct elements ele[3]={};
 #if FRAGMENTATION
   static struct fragmentation frag;
@@ -592,109 +642,42 @@ int main(){
   }
 
 
-  dt = 0.1 * fabs(ele[1].ecc2 / decc2dt(1,ele));  //離心率進化のタイムスケールの0.1倍.
-  printf("dt_0 = %e [yr]\n",dt/2.0/M_PI);
+  dt = ETA * Min(fabs(ele[1].ecc2 / decc2dt(1,ele)),fabs(ele[2].ecc2 / decc2dt(2,ele)));  //離心率進化のタイムスケールのETA倍.
 
 
 #if FRAGMENTATION
   /* 初期 */
   Fragmentation(&frag,&para,ele);
 
+  dt = Min(dt,frag.dt_frag);
+  /*
   if(dt > frag.dt_frag){
-    printf("\tdt = %e [yr] > dt_frag = %e [yr]\n",dt/2.0/M_PI,frag.dt_frag/2.0/M_PI);
+    //printf("\tdt = %e [yr] > dt_frag = %e [yr]\n",dt/2.0/M_PI,frag.dt_frag/2.0/M_PI);
 
     dt = frag.dt_frag;
 
-    printf("\t=> dt = %e [yr]\n",dt/2.0/M_PI);
+    //printf("\t=> dt = %e [yr]\n",dt/2.0/M_PI);
   }
+  */
 #endif
 
+  printf("dt_0 = %e [yr]\n",dt/2.0/M_PI);
 
-  while(t - dt < T_MAX){
+  while(t < T_MAX){
 
-    printf("------------------------------------\n");
+    //printf("------------------------------------\n");
     printf("t = %e [yr]\n",t/2.0/M_PI);
 
-    if(t < t_check){
+    if(t + dt < t_check){
 
-      /////////////////////////////////////////////////////////
-      for(i=1;i<=2;i++){
-	ele[i].ecc2_next = ele[i].ecc2 + decc2dt(i,ele) * dt;
-	ele[i].inc2_next = ele[i].inc2 + dinc2dt(i,ele) * dt;
-      }
+      t += dt;
 
+      Evolution(&dt,
 #if FRAGMENTATION
-      ele[2].eachmass_next = ele[2].eachmass / (1.0 + dt/(- frag.sigma / frag.flux));
-      ele[2].totalmass_next = ele[2].totalmass / (1.0 + dt/(- frag.sigma / frag.flux));
+		&frag,
+		&para,
 #endif
-
-      dt = 0.1 * fabs(ele[1].ecc2 / decc2dt(1,ele));  //離心率進化のタイムスケールの0.1倍.
-
-#if FRAGMENTATION
-      Fragmentation(&frag,&para,ele);
-
-      if(dt > frag.dt_frag){
-	printf("\tdt = %e [yr] > dt_frag = %e [yr]\n",dt/2.0/M_PI,frag.dt_frag/2.0/M_PI);
-
-	dt = frag.dt_frag;
-
-	printf("\t=> dt = %e [yr]\n",dt/2.0/M_PI);
-      }
-
-      ele[2].eachmass = ele[2].eachmass_next;
-      ele[2].totalmass = ele[2].totalmass_next;
-#endif
-
-
-      for(i=1;i<=2;i++){
-	ele[i].ecc2 = ele[i].ecc2_next;
-	ele[i].inc2 = ele[i].inc2_next;
-      }
-      /////////////////////////////////////////////////////////
-
-    }else{  //t_checkに時間を揃える.
-
-      printf("check %e [yr]\n",t/2.0/M_PI);
-
-      t = t_check;
-      dt = t_check - t;
-
-      /////////////////////////////////////////////////////////
-      for(i=1;i<=2;i++){
-	ele[i].ecc2_next = ele[i].ecc2 + decc2dt(i,ele) * dt;
-	ele[i].inc2_next = ele[i].inc2 + dinc2dt(i,ele) * dt;
-      }
-
-
-#if FRAGMENTATION
-      ele[2].eachmass_next = ele[2].eachmass / (1.0 + dt/(- frag.sigma / frag.flux));
-      ele[2].totalmass_next = ele[2].totalmass / (1.0 + dt/(- frag.sigma / frag.flux));
-#endif
-
-      dt = 0.1 * fabs(ele[1].ecc2 / decc2dt(1,ele));  //離心率進化のタイムスケールの0.1倍.
-
-#if FRAGMENTATION
-      Fragmentation(&frag,&para,ele);
-
-      if(dt > frag.dt_frag){
-	printf("\tdt = %e [yr] > dt_frag = %e [yr]\n",dt/2.0/M_PI,frag.dt_frag/2.0/M_PI);
-
-	dt = frag.dt_frag;
-
-	printf("\t=> dt = %e [yr]\n",dt/2.0/M_PI);
-      }
-
-      ele[2].eachmass = ele[2].eachmass_next;
-      ele[2].totalmass = ele[2].totalmass_next;
-#endif
-
-
-      for(i=1;i<=2;i++){
-	ele[i].ecc2 = ele[i].ecc2_next;
-	ele[i].inc2 = ele[i].inc2_next;
-      }
-      /////////////////////////////////////////////////////////
-
+		ele);
 
       for(i=1;i<=2;i++){
 	sprintf(datafile,"%s%s.dat",STR(DIRECTORY),ele[i].name);
@@ -713,12 +696,47 @@ int main(){
 		);
 	fclose(fpdata);
       }
-      t_check *= pow(10.0,1.0/8.0);
+
+    }else{  //t_checkに時間を揃える.
+
+      printf("check %e [yr]\n",t_check/2.0/M_PI);
+
+      dt = t_check - t;
+      t = t_check;
+
+      Evolution(&dt,
+#if FRAGMENTATION
+		&frag,
+		&para,
+#endif
+		ele);
+
+      for(i=1;i<=2;i++){
+	sprintf(datafile,"%s%s.dat",STR(DIRECTORY),ele[i].name);
+	fpdata = fopen(datafile,"a");
+	if(fpdata==NULL){
+	  printf("datafile error\n");
+	  return -1;
+	}
+
+	fprintf(fpdata,"%e\t%.15e\t%.15e\t%.15e\t%.15e\n",
+		t/2.0/M_PI,
+		sqrt(ele[i].ecc2),
+		sqrt(ele[i].inc2),
+		ele[i].eachmass,
+		ele[i].totalmass
+		);
+	fclose(fpdata);
+      }
+
+      //t_check *= pow(10.0,1.0/8.0);
+      t_check *= 10.0;
     }
 
-    t += dt;
-
+    step += 1;
   }
+
+  printf("step = %d\n",step);
 
 
   /*
