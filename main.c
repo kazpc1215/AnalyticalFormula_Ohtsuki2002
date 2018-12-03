@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 
-#define DIRECTORY ./Meach3E-8_Mtot3E-5_Mmax5E-15_t1E9_dtlog_ecc5E-2_nofrag_dt/  //ディレクトリ.
+#define DIRECTORY ./S8E2_t1E9_dtlog_ecc1E-4_all/  //ディレクトリ.
 //#define DIRECTORY ./Meach3E-9_Mtot3E-7_Mmax5E-15_t1E9_dtlog_ecc1E-1_nofrag_dt/  //ディレクトリ.
 //#define DIRECTORY ./test/  //ディレクトリ.
 
@@ -14,10 +14,10 @@
 #define N_DIVIDE_I 64
 #define N_DIVIDE_S 256
 
-#define ECC_RMS 5.0E-2
+#define ECC_RMS 1.0E-4
 #define INC_RMS (BETA*ECC_RMS)
 
-#define DIFFERENTTYPE true  //DIFFERENTTYPE = true のとき : 惑星-微惑星のみ.
+#define DIFFERENTTYPE false  //DIFFERENTTYPE = true のとき : 惑星-微惑星のみ.
 #define BACKREACTION false
 //DIFFERENTTYPE = false かつ BACKREACTION = true のとき : 惑星-惑星, 惑星-微惑星.
 //DIFFERENTTYPE = false かつ BACKREACTION = false のとき : 惑星-惑星, 惑星-微惑星, 微惑星-微惑星.
@@ -31,18 +31,19 @@
 
 #define T_MAX (2.0*M_PI*1.0E9)
 
-#define PLANET_EACHMASS 3.0E-6
-#define PLANET_TOTALMASS 3.0E-6
+#define PLANET_EACHMASS 2.0E-9
+#define PLANET_TOTALMASS 4.0E-7
 
-#define PLANETESIMAL_EACHMASS 3.0E-8
-#define PLANETESIMAL_TOTALMASS 3.0E-5
+#define PLANETESIMAL_EACHMASS 5.0E-10
+#define PLANETESIMAL_TOTALMASS 4.0E-7
 
 
 #define AXIS 1.0
 #define BETA 0.5
 #define ETA 0.01
 
-
+//#define SQUARE (1.0/1.5/1.5)  // 1E24g*1000体のとき10g/cm^2となる面積 [AU^2]
+#define SQUARE (1.6/1.5/1.5)  // 1E24g*800体+4E24g*200体のとき10g/cm^2となる面積 [AU^2]
 
 #if FRAGMENTATION
 #define RHO 3.0  // [g/cc]  微惑星の物質密度.
@@ -51,8 +52,8 @@
 #define Q_0_FRAG 9.5E8 // [erg/g]  Q_D = Q_0*(rho/3[g/cc])^0.55*(m/10^21[g])^p
 #define P_FRAG 0.453
 #define XI 0.01 //統計的計算のタイムステップがタイムスケールの"XI"倍.
-#define M_MAX 5.00E-15  //最大微惑星質量. 1E19 g = 10kmサイズ.
-//#define M_MAX 5.00E-18  //最大微惑星質量. 1E16 g = 1kmサイズ.
+//#define M_MAX 5.00E-15  //最大微惑星質量. 1E19 g = 10kmサイズ.
+#define M_MAX 5.00E-18  //最大微惑星質量. 1E16 g = 1kmサイズ.
 #endif
 
 #if __GNUC__ == 7
@@ -321,8 +322,11 @@ double Q_DF(double ecc2, double inc2){
 
 double N_s(int j,CONST struct elements ele[]){
 
+#ifndef SQUARE
   double S = M_PI * (AXIS*MutualHill_Ratio(5.0)*AXIS*MutualHill_Ratio(5.0) - AXIS/MutualHill_Ratio(5.0)*AXIS/MutualHill_Ratio(5.0));
-
+#else
+  double S = SQUARE;
+#endif
   return ele[j].totalmass / ele[j].eachmass / S;
 }
 

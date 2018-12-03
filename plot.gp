@@ -5,21 +5,50 @@ set term aqua dashed font "Times-Roman,30" enhanced
 
 PAUSE = -1
 
-set key left bottom box width -4 spacing 1.0 font "Times-Roman,20"
+
 set bmargin 2
-set lmargin 6
+# set lmargin 6
+set lmargin 8
 set xtics offset 0,0.3
 set ytics offset 0.5,0
 set xl "time [yr]" offset 0,1
 
-set log
+# set log
 
-set format "10^{%L}"
-unset key
+# set format "10^{%L}"
+# unset key
 set bar 0.3
 
 ###################################
 
+SMALL = "S8E2_t1E9_dtlog_ecc1E-4_all/Planetesimal.dat"
+LARGE = "S8E2_t1E9_dtlog_ecc1E-4_all/Planet.dat"
+
+set yl "ecc, inc [rad]" offset 2,0
+# set yl "ecc, inc [rad]" offset 3,0
+set xr [0:1E3]
+
+set key left top box width -1 spacing 1.1 font "Times-Roman,20"
+p SMALL u 1:2 w l lw 2 t "<e_S^2>^{1/2}",\
+LARGE u 1:2 w l lw 2 t "<e_L^2>^{1/2}",\
+SMALL u 1:3 w l lw 2 t "<i_S^2>^{1/2}",\
+LARGE u 1:3 w l lw 2 t "<i_L^2>^{1/2}"
+
+
+
+SMALL = "S1E3_t1E9_dtlog_ecc1E-4_all/Planetesimal.dat"
+
+# set yl "ecc, inc [rad]" offset 2,0
+set yl "ecc, inc [rad]" offset 3,0
+# set xr [0:1E3]
+set ytics 0.001
+
+set key left top box width -1 spacing 1.1 font "Times-Roman,20"
+p SMALL u 1:2 w l lw 2 t "<e^2>^{1/2}",\
+SMALL u 1:3 w l lw 2 t "<i^2>^{1/2}"
+
+
+pause
 
 # Planet1 = "Meach5E-15_Mtot3E-7_Mmax5E-15_t1E9_dtlog_ecc1E-1_nofrag_dt/Planet.dat"
 # Planet2 = "Meach5E-15_Mtot3E-7_Mmax5E-15_t1E9_dtlog_ecc5E-2_nofrag_dt/Planet.dat"
