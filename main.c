@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 
-#define DIRECTORY ./Meach5E-15_Mtot3E-7_Mmax5E-15_t1E9_dtlog_ecc1E-1_frag_dt/  //ディレクトリ.
+#define DIRECTORY ./Meach3E-8_Mtot3E-5_Mmax5E-15_t1E9_dtlog_ecc5E-2_nofrag_dt/  //ディレクトリ.
 //#define DIRECTORY ./Meach3E-9_Mtot3E-7_Mmax5E-15_t1E9_dtlog_ecc1E-1_nofrag_dt/  //ディレクトリ.
 //#define DIRECTORY ./test/  //ディレクトリ.
 
@@ -14,7 +14,7 @@
 #define N_DIVIDE_I 64
 #define N_DIVIDE_S 256
 
-#define ECC_RMS 1.0E-1
+#define ECC_RMS 5.0E-2
 #define INC_RMS (BETA*ECC_RMS)
 
 #define DIFFERENTTYPE true  //DIFFERENTTYPE = true のとき : 惑星-微惑星のみ.
@@ -22,7 +22,7 @@
 //DIFFERENTTYPE = false かつ BACKREACTION = true のとき : 惑星-惑星, 惑星-微惑星.
 //DIFFERENTTYPE = false かつ BACKREACTION = false のとき : 惑星-惑星, 惑星-微惑星, 微惑星-微惑星.
 
-#define FRAGMENTATION true
+#define FRAGMENTATION false
 
 #define ACCURACY_CHECK true
 #define EPS_KE 1.0E-10
@@ -34,8 +34,8 @@
 #define PLANET_EACHMASS 3.0E-6
 #define PLANET_TOTALMASS 3.0E-6
 
-#define PLANETESIMAL_EACHMASS 5.0E-15
-#define PLANETESIMAL_TOTALMASS 3.0E-7
+#define PLANETESIMAL_EACHMASS 3.0E-8
+#define PLANETESIMAL_TOTALMASS 3.0E-5
 
 
 #define AXIS 1.0
