@@ -31,6 +31,8 @@
 
 #define T_MAX (2.0*M_PI*1.0E9)
 
+//#define PLANET_EACHMASS 5.0E-10
+//#define PLANET_TOTALMASS 2.5E-7
 #define PLANET_EACHMASS 2.0E-9
 #define PLANET_TOTALMASS 4.0E-7
 
