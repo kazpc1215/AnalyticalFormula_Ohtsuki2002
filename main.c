@@ -4,9 +4,9 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 
-#define DIRECTORY ./S8E2_t1E9_dtlog_ecc1E-4_all/  //ディレクトリ.
+//#define DIRECTORY ./S8E2_t1E9_dtlog_ecc1E-4_all/  //ディレクトリ.
 //#define DIRECTORY ./Meach3E-9_Mtot3E-7_Mmax5E-15_t1E9_dtlog_ecc1E-1_nofrag_dt/  //ディレクトリ.
-//#define DIRECTORY ./test/  //ディレクトリ.
+#define DIRECTORY ./test/  //ディレクトリ.
 
 #define STR_(str) #str
 #define STR(str) STR_(str)
@@ -14,7 +14,7 @@
 #define N_DIVIDE_I 64
 #define N_DIVIDE_S 256
 
-#define ECC_RMS 1.0E-4
+#define ECC_RMS 1.0E-2
 #define INC_RMS (BETA*ECC_RMS)
 
 #define DIFFERENTTYPE false  //DIFFERENTTYPE = true のとき : 惑星-微惑星のみ.
@@ -22,15 +22,25 @@
 //DIFFERENTTYPE = false かつ BACKREACTION = true のとき : 惑星-惑星, 惑星-微惑星.
 //DIFFERENTTYPE = false かつ BACKREACTION = false のとき : 惑星-惑星, 惑星-微惑星, 微惑星-微惑星.
 
-#define FRAGMENTATION false
+#define FRAGMENTATION true
 
 #define ACCURACY_CHECK true
 #define EPS_KE 1.0E-10
 #define EPS_I 1.0E-10
 #define EPS_S 1.0E-10
 
-#define T_MAX (2.0*M_PI*1.0E9)
+#define T_MAX (2.0*M_PI*1.0E0)
 
+//#define PLANET_EACHMASS 3.0E-6
+//#define PLANET_TOTALMASS 3.0E-6
+#define PLANET_EACHMASS 3.0E-7
+#define PLANET_TOTALMASS 3.0E-7
+
+#define PLANETESIMAL_EACHMASS 3.0E-8
+//#define PLANETESIMAL_TOTALMASS 3.0E-5
+#define PLANETESIMAL_TOTALMASS 3.0E-7
+
+/* Nbody_test用.
 //#define PLANET_EACHMASS 5.0E-10
 //#define PLANET_TOTALMASS 2.5E-7
 #define PLANET_EACHMASS 2.0E-9
@@ -39,13 +49,19 @@
 #define PLANETESIMAL_EACHMASS 5.0E-10
 #define PLANETESIMAL_TOTALMASS 4.0E-7
 
+//#define SQUARE (1.0/1.5/1.5)  // 1E24g*1000体のとき10g/cm^2となる面積 [AU^2]
+#define SQUARE (1.6/1.5/1.5)  // 1E24g*800体+4E24g*200体のとき10g/cm^2となる面積 [AU^2]
+*/
+
+
+#define IGNORE_PVS true
+#define IGNORE_QVS true
 
 #define AXIS 1.0
 #define BETA 0.5
 #define ETA 0.01
 
-//#define SQUARE (1.0/1.5/1.5)  // 1E24g*1000体のとき10g/cm^2となる面積 [AU^2]
-#define SQUARE (1.6/1.5/1.5)  // 1E24g*800体+4E24g*200体のとき10g/cm^2となる面積 [AU^2]
+
 
 #if FRAGMENTATION
 #define RHO 3.0  // [g/cc]  微惑星の物質密度.
@@ -54,8 +70,10 @@
 #define Q_0_FRAG 9.5E8 // [erg/g]  Q_D = Q_0*(rho/3[g/cc])^0.55*(m/10^21[g])^p
 #define P_FRAG 0.453
 #define XI 0.01 //統計的計算のタイムステップがタイムスケールの"XI"倍.
-//#define M_MAX 5.00E-15  //最大微惑星質量. 1E19 g = 10kmサイズ.
-#define M_MAX 5.00E-18  //最大微惑星質量. 1E16 g = 1kmサイズ.
+//#define M_MAX 5.00E-12  //最大微惑星質量. 1E22 g = 100kmサイズ.
+#define M_MAX 5.00E-15  //最大微惑星質量. 1E19 g = 10kmサイズ.
+//#define M_MAX 5.00E-18  //最大微惑星質量. 1E16 g = 1kmサイズ.
+//#define M_MAX 5.00E-21  //最大微惑星質量. 1E13 g = 100mサイズ.
 #endif
 
 #if __GNUC__ == 7
@@ -101,7 +119,9 @@ struct parameter{
 #endif
 
 static inline ALWAYS_INLINE double MutualHill_Ratio(double ratio){
-  return (1.0/ratio + 0.5*cbrt(2.0*PLANET_EACHMASS/3.0))/(1.0/ratio - 0.5*cbrt(2.0*PLANET_EACHMASS/3.0));
+  double m_p = 3.0E-6;
+  //double m_p = PLANET_EACHMASS;
+  return (1.0/ratio + 0.5*cbrt(2.0*m_p/3.0))/(1.0/ratio - 0.5*cbrt(2.0*m_p/3.0));
 }
 
 static inline ALWAYS_INLINE double Reduced_Hill(int i, int j,CONST struct elements ele[]){
@@ -295,7 +315,11 @@ double P_VS(double ecc2, double inc2){
   double Lambda = 1.0/12.0 * (ecc2 + inc2) * sqrt(inc2);
   double beta = sqrt(inc2/ecc2);
 
+#if IGNORE_PVS
+  return 0.0;
+#else
   return log(10.0 * Lambda*Lambda/ecc2 + 1.0) / (10.0 * Lambda*Lambda/ecc2) * 73.0 + 72.0 * I_PVS(beta) / (M_PI * sqrt(ecc2) * sqrt(inc2)) * log(Lambda*Lambda + 1.0);
+#endif
 }
 
 double Q_VS(double ecc2, double inc2){
@@ -303,7 +327,11 @@ double Q_VS(double ecc2, double inc2){
   double Lambda = 1.0/12.0 * (ecc2 + inc2) * sqrt(inc2);
   double beta = sqrt(inc2/ecc2);
 
+#if IGNORE_QVS
+  return 0.0;
+#else
   return log(10.0 * Lambda*Lambda*sqrt(ecc2) + 1.0) / (10.0 * Lambda*Lambda*sqrt(ecc2)) * (4.0*inc2 + 0.2*ecc2*sqrt(ecc2)*sqrt(inc2)) + 72.0 * I_QVS(beta) / (M_PI * sqrt(ecc2) * sqrt(inc2)) * log(Lambda*Lambda + 1.0);
+#endif
 }
 
 double P_DF(double ecc2, double inc2){
@@ -604,7 +632,7 @@ int main(){
   para.s_3 = s_3_FRAG(&para);
   para.h_0 = 0.061*17.3*pow(1.68E6*RHO,-2.0/3.0);  // g/cc = 1.68E6 M_0/AU^3, F(I) = 17.3 として.
   para.Q_D = Q_0_FRAG*1.13E-13*pow(RHO/3.0,0.55)*pow(M_MAX*1.989E12,P_FRAG);  //erg/g = 1.13E-13 AU^2/(yr/2pi)^2 として.
-
+  /*
   printf("alpha=%g\ts_1=%g\ts_2=%g\ts_3=%g\th_0=%g\tQ_D=%g\n",
 	 para.alpha,
 	 para.s_1,
@@ -613,6 +641,7 @@ int main(){
 	 para.h_0,
 	 para.Q_D
 	 );
+  */
 #endif
 
 
@@ -666,6 +695,53 @@ int main(){
   }
   */
 #endif
+
+
+  ///////////////////////////////////////////////////////////////////////////////
+  double e;
+  double h_11 = cbrt((2.0*PLANET_EACHMASS)/3.0);
+  double h_22 = cbrt((2.0*PLANETESIMAL_EACHMASS)/3.0);
+  double h_12 = cbrt((PLANET_EACHMASS + PLANETESIMAL_EACHMASS)/3.0);
+  double tau_df = 0.0;
+  double tau_dep = 0.0;
+  double m_max = 0.0;
+  double index = 1.0/3.0 + 5.0*P_FRAG / (6.0 + 3.0*P_FRAG);
+
+  printf("# M_MAX = %e [M_sun] -> R_MAX = %e [cm]\n",M_MAX,cbrt(3.0/4.0/M_PI*M_MAX*1.989E33/RHO));
+  printf("# 1:e\t2:tau_df[yr]\t3:tau_dep[yr]\t4:m_max^*[M_sun]\t5:R_max^*[cm]\t6:h_11\t7:h_22\t8:h_12\t9:m_1\t10:m_2\n");
+
+  for(e=0.002;e<=0.5;e*=pow(10,1.0/256.0)){
+    ele[1].ecc2 = e*e;
+    ele[1].inc2 = 0.5*e*0.5*e;
+    ele[2].ecc2 = e*e;
+    ele[2].inc2 = 0.5*e*0.5*e;
+
+    tau_df = fabs(ele[1].ecc2 / decc2dt(1,ele));
+
+    Fragmentation(&frag,&para,ele);
+    tau_dep = frag.dt_frag / XI;
+
+    m_max = pow(tau_df/tau_dep,1.0/index) * M_MAX;
+
+    printf("%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n",
+	   e,
+	   tau_df/2.0/M_PI,
+	   tau_dep/2.0/M_PI,
+	   m_max,
+	   cbrt(3.0/4.0/M_PI*m_max*1.989E33/RHO),
+	   h_11,
+	   h_22,
+	   h_12,
+	   PLANET_EACHMASS,
+	   PLANETESIMAL_EACHMASS
+	   );
+  }
+
+
+
+
+  return 0;
+  ///////////////////////////////////////////////////////////////////////////////
 
   printf("dt_0 = %e [yr]\n",dt/2.0/M_PI);
 
